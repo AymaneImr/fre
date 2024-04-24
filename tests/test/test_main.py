@@ -124,7 +124,9 @@ class Data(BaseCase):
         self.sleep(6)
         self.click(f'a:contains({info.scrape})')
         self.sleep(7)
-        
+        self.test_scrape()
+    
+    def test_scrape(self):
         #check if account is private
         if self.assert_text('This account is private'):
             raise Exception('The account you\'re trying to scrape is private')
@@ -246,34 +248,6 @@ class Data(BaseCase):
         if self.assert_text('This account is private'):
             raise Exception('The account you\'re trying to scrape is private')
         
-        #scraping followers, following and posts numbers
-        numbers = self.find_elements('span[class="_ac2a"]')
-        self.posts = numbers[0].text
-        self.followers = numbers[1].text
-        self.following = numbers[2].text
-        
-        #get the user profile pic url
-        image_src = self.get_image_url(f'img[alt="{info.scrape}\'s profile picture"]')
-        self.profile_pic_url = image_src
-        
-        #get the account name
-        acc_name = self.find_element('.x7a106z span.x1lliihq')
-        self.name = acc_name
-        
-        #get the bio
-        bio = self.find_element('.x7a106z h1._ap3a')
-        self.bio = bio
-        
-        #following part 
-        #click the following button to access the following data
-        self.click('a:contains("following")')
-        self.test_scrape_inside_popup('following')
-        print('____________________________________________________')
-        #click the return button to access the followers button
-        self.click('polyline[stroke="currentColor"]')
-        self.sleep(7)
-        
-        #followers part
-        #click the followers button to access to followers data
-        self.click('a:contains("followers")')
-        self.test_scrape_inside_popup('followers')
+        self.test_scrape()
+    
+    
