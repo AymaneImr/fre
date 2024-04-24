@@ -121,15 +121,32 @@ class Data(BaseCase):
         self.click('a:contains("Search")')
         self.sleep(8)
         self.type('input[placeholder="Search"]', info.scrape)
-        self.sleep(5)
+        self.sleep(6)
         self.click(f'a:contains({info.scrape})')
         self.sleep(7)
+        
+        #check if account is private
+        if self.assert_text('This account is private'):
+            raise Exception('The account you\'re trying to scrape is private')
         
         #scraping followers, following and posts numbers
         numbers = self.find_elements('span[class="_ac2a"]')
         self.posts = numbers[0].text
-        self.followers = numbers[1].text
-        self.following = numbers[2].text
+        followers = numbers[1].text
+        following = numbers[2].text
+        
+        #convert numbers form from (1K) to (1000)
+        def convert_number(number):
+            if 'M' in number:
+                number = int(float(followers.rstrip('M').strip('.')) * 1000000)
+                return number
+            elif 'K' in number:
+                number = int(float(followers.rstrip('M').strip('.')) * 1000)
+                return number
+            return number
+        
+        self.followers = convert_number(followers)
+        self.following = convert_number(following)
         
         #get the user profile pic url
         image_src = self.get_image_url(f'img[alt="{info.scrape}\'s profile picture"]')
@@ -219,3 +236,44 @@ class Data(BaseCase):
             file = 'following.xlsx'
             following_file = df.to_excel(file)
             return following_file
+    
+    #scrape public accounts without log in
+    def test_public(self):
+        self.open(info.url)
+        self.sleep(6)
+        
+        #check if account is private
+        if self.assert_text('This account is private'):
+            raise Exception('The account you\'re trying to scrape is private')
+        
+        #scraping followers, following and posts numbers
+        numbers = self.find_elements('span[class="_ac2a"]')
+        self.posts = numbers[0].text
+        self.followers = numbers[1].text
+        self.following = numbers[2].text
+        
+        #get the user profile pic url
+        image_src = self.get_image_url(f'img[alt="{info.scrape}\'s profile picture"]')
+        self.profile_pic_url = image_src
+        
+        #get the account name
+        acc_name = self.find_element('.x7a106z span.x1lliihq')
+        self.name = acc_name
+        
+        #get the bio
+        bio = self.find_element('.x7a106z h1._ap3a')
+        self.bio = bio
+        
+        #following part 
+        #click the following button to access the following data
+        self.click('a:contains("following")')
+        self.test_scrape_inside_popup('following')
+        print('____________________________________________________')
+        #click the return button to access the followers button
+        self.click('polyline[stroke="currentColor"]')
+        self.sleep(7)
+        
+        #followers part
+        #click the followers button to access to followers data
+        self.click('a:contains("followers")')
+        self.test_scrape_inside_popup('followers')

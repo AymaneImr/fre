@@ -1,3 +1,4 @@
 tests/__init__.py
 tests/test_first.py
+tests/test/__pycache__
 venv
