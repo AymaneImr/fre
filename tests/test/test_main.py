@@ -27,37 +27,40 @@ class Info:
     def test_allowed_username(self, username=None, scrape=None):
         valid_url = 'https://www.instagram.com'
         
-        #makesure that the user specified at least one argument
-        if not username or len(username) <= 3 or not scrape or len(scrape) <= 3:
-            raise Exception('You forgot to specify one argument')
-            return False
+        #make sure that the user specified at least one argument
+        if not username and not scrape :
+            raise Exception('You forgot to pass one argument')
+        elif username and len(username) <= 3 :
+            raise Exception('invalid username!')
+        elif scrape and len(scrape) <= 3:
+            raise Exception('invalid username!')
         
-        elif valid_url not in (username, scrape) :
+        elif valid_url not in (username, scrape):
             
             #remove any spaces at the end to check for spaces in between
-            if username.endswith(' ') or username.startswith(' ') or scrape.endswith(' ') or scrape.startswith(' '):
-                username = username.rstrip(' ').lstrip(' ')
-                scrape = scrape.rstrip(' ').lstrip(' ')
-                
+            if username:
+                if username.endswith(' ') or username.startswith(' '):
+                    username = username.rstrip(' ').lstrip(' ')
+                    
                 #check for any spaces left
-                if ' ' not in (username, scrape):
-                    self.username = username
-                    self.scrape = scrape
-                    self.url = valid_url + '/' + self.username
-                    return True
-                
-                return False
-            
-            #if there are no spaces either at the start or at the end 
-            else:
                 if ' ' not in username:
                     self.username = username
-                    self.scrape = scrape
                     self.url = valid_url + '/' + self.username
                     return True
+                return False
                 
+            elif scrape:
+                if scrape.endswith(' ') or scrape.startswith(' '):
+                    scrape = scrape.rstrip(' ').lstrip(' ')
+                    
+                #check for any spaces left
+                if ' ' not in scrape:
+                    self.scrape = scrape
+                    return True
                 return False
             
+            return False
+        
         return False
     
     #get instagram account url 
@@ -81,7 +84,7 @@ info = Info()
 
 class Data(BaseCase):
     
-    def __init__(self):
+    def setup(self):
         self.followers = int
         self.following = int
         self.posts = int
@@ -104,31 +107,35 @@ class Data(BaseCase):
         self.type("input[name='username']", info.username)
         self.type("input[name='password']", info.password)
         self.click('button:contains("Log in")')
-        
-        if self.assert_exact_text("Sorry, this page isn't available."):
-            raise Exception('The link you followed may be broken, or the page may have been removed.')
-        
-        #check for login status
-        elif self.assert_exact_text("Sorry, your password was incorrect. Please double-check your password."):
+        self.sleep(5)
+        try:
+            self.assert_text_not_visible('Sorry, your password was incorrect. Please double-check your password.')
+        except Exception:
             raise Exception('The password is incorrect. Please double check your login information.')
-        if not self.assert_text('Save your login info?') and not self.assert_url('https://www.instagram.com/accounts/onetap/?next=/'):
+        try:
+            self.is_text_visible('Save your login info?', 'div')
+        except Exception:
             raise Exception('Something went wrong.')
     
     #scrape data if logged in 
-    def test_private(self):
-        self.test_log_in(info.username, info.password)
+    def test_private(self, username, password, scrape):
+        self.test_log_in(username, password)
         self.sleep(8)
         self.click('a:contains("Search")')
         self.sleep(8)
+        info.test_allowed_username(scrape=scrape)
         self.type('input[placeholder="Search"]', info.scrape)
         self.sleep(6)
-        self.click(f'a:contains({info.scrape})')
+        print(info.scrape)
+        self.click(f'a:contains("{info.scrape}")')
         self.sleep(7)
         self.test_scrape()
     
     def test_scrape(self):
         #check if account is private
-        if self.assert_text('This account is private'):
+        try: 
+            self.assert_text_not_visible('This account is private')
+        except Exception:
             raise Exception('The account you\'re trying to scrape is private')
         
         #scraping followers, following and posts numbers
@@ -143,7 +150,7 @@ class Data(BaseCase):
                 number = int(float(followers.rstrip('M').strip('.')) * 1000000)
                 return number
             elif 'K' in number:
-                number = int(float(followers.rstrip('M').strip('.')) * 1000)
+                number = int(float(followers.rstrip('K').strip('.')) * 1000)
                 return number
             return number
         
@@ -159,8 +166,12 @@ class Data(BaseCase):
         self.name = acc_name
         
         #get the bio
-        bio = self.find_element('.x7a106z h1._ap3a')
-        self.bio = bio
+        try:
+            bio = self.find_element('.x7a106z h1._ap3a')
+            self.bio = bio
+        except Exception:
+            self.bio = None
+            pass
         
         #following part 
         #click the following button to access the following data
@@ -229,13 +240,13 @@ class Data(BaseCase):
         #convert dataframe into an excel file
         #generate followers file
         if data_file == 'followers':
-            file = 'followers.xlsx'
+            file = f'{info.scrape}followers.xlsx'
             followers_file = df.to_excel(file)
             return followers_file
         
         #generate following file
         elif data_file == 'following':
-            file = 'following.xlsx'
+            file = f'{info.scrape}following.xlsx'
             following_file = df.to_excel(file)
             return following_file
     
@@ -243,11 +254,26 @@ class Data(BaseCase):
     def test_public(self):
         self.open(info.url)
         self.sleep(6)
+        if self.assert_exact_text("Sorry, this page isn't available."):
+            raise Exception('The link you followed may be broken, or the page may have been removed.')
         
         #check if account is private
-        if self.assert_text('This account is private'):
+        try: 
+            self.assert_text_not_visible('This account is private')
+        except Exception:
             raise Exception('The account you\'re trying to scrape is private')
         
         self.test_scrape()
     
-    
+    def test_start_scrape(self):
+        acc_type = input('Type PV for private account / PB for public account.').lower()
+        # path = input('Provide username/url\'s account')
+        if acc_type == 'pv':
+            username = input('account\'s username: ')
+            password = input('account\'s password:  ')
+            scrape   = input('account to scrape: ')
+            self.test_private( username=username, password=password, scrape=scrape)
+            
+
+
+
