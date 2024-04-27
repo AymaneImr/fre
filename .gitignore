@@ -1,4 +1,14 @@
 tests/__init__.py
+tests/__pycache__
+tests/.pytest_cache
+tests/archived_logs
+tests/latest_logs
 tests/test_first.py
+
 tests/test/__pycache__
+tests/test/.pytest_cache
+tests/test/latest_logs
+
+.pytest_cache
+latest_logs
 venv

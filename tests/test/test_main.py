@@ -11,17 +11,18 @@ class Info:
     
     #check if this is an instagram link
     def test_allowed_url(self, url):
-        path = url.split('https://www.')[1]
+        username = url.split('https://www.')[1].rsplit('/')[1]
         #second method path = url.lstrip('https://www.')
         valid_url = 'https://www.instagram.com' 
         
         #the link should contains the correct instagram domain 
         #and at the same time it shouldn't be just the domain 
         #it should contains the account username at end of the url
-        if path.startswith('instagram.com') and url != valid_url:
+        if url.startswith(valid_url) and url != valid_url:
+            self.username = username
             return True
         else:
-            return False
+            raise Exception('Invalid instagram link')
     
     #get account by username
     def test_allowed_username(self, username=None, scrape=None):
@@ -69,7 +70,7 @@ class Info:
             self.url = url
             return True
         
-        return False
+        raise Exception('Something went wrong') 
     
     #get login information
     def test_login(self, username, password):
@@ -84,7 +85,8 @@ info = Info()
 
 class Data(BaseCase):
     
-    def setup(self):
+    def setUp(self):
+        super(Data, self).setUp()
         self.followers = int
         self.following = int
         self.posts = int
@@ -126,18 +128,11 @@ class Data(BaseCase):
         info.test_allowed_username(scrape=scrape)
         self.type('input[placeholder="Search"]', info.scrape)
         self.sleep(6)
-        print(info.scrape)
         self.click(f'a:contains("{info.scrape}")')
         self.sleep(7)
         self.test_scrape()
     
     def test_scrape(self):
-        #check if account is private
-        try: 
-            self.assert_text_not_visible('This account is private')
-        except Exception:
-            raise Exception('The account you\'re trying to scrape is private')
-        
         #scraping followers, following and posts numbers
         numbers = self.find_elements('span[class="_ac2a"]')
         self.posts = numbers[0].text
@@ -158,20 +153,29 @@ class Data(BaseCase):
         self.following = convert_number(following)
         
         #get the user profile pic url
-        image_src = self.get_image_url(f'img[alt="{info.scrape}\'s profile picture"]')
+        image_src = self.get_image_url(f'img[alt="{info.username}\'s profile picture"]')
         self.profile_pic_url = image_src
         
         #get the account name
         acc_name = self.find_element('.x7a106z span.x1lliihq')
-        self.name = acc_name
+        self.name = acc_name.text
         
         #get the bio
         try:
             bio = self.find_element('.x7a106z h1._ap3a')
-            self.bio = bio
+            self.bio = bio.text
         except Exception:
             self.bio = None
             pass
+        
+        #account's information in excel file 
+        self.test_get_acc_info()
+        
+        #check if account is private
+        try: 
+            self.assert_text_not_visible('This account is private')
+        except Exception:
+            raise Exception('The account you\'re trying to scrape is private you can\'t see his/her following/followers data.')
         
         #following part 
         #click the following button to access the following data
@@ -191,9 +195,15 @@ class Data(BaseCase):
     def test_scrape_inside_popup(self, data_file):
         self.sleep(8)
         
-        #scroll down inside the popup
+        #find the div in pop up that control the scrolling
         popup = self.find_element('._aano')
-        for i in range(2):
+        if data_file == 'followers':
+            scroll_times = int(self.followers) // 5
+        else:
+            scroll_times = int(self.following) // 5
+        
+        #scroll down inside the popup
+        for i in range(scroll_times + 1):
             self.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", popup)
             self.sleep(2)
         
@@ -204,12 +214,14 @@ class Data(BaseCase):
             #store usernames in a list 
             usernames_data.append(username.text)
         
+        
         #scrape following names
         names = self.find_elements('._aano span.x1lliihq span.x6ikm8r')
         names_data = []
         for name in names:
             #store names in a list 
             names_data.append(name.text)
+        
         
         #scrape following profile pic url and store it in a list
         img_elements_src = self.find_elements('.x1ja2u2z[role="dialog"] img[src]')
@@ -218,6 +230,7 @@ class Data(BaseCase):
             src = img.get_attribute("src")
             sources.append(src)
         
+        
         #scrape accounts url
         urls = self.find_elements('.x1ja2u2z[role="dialog"] .xdl72j9 .x9f619 .x1rg5ohu a.x4uap5[href]')
         url_acc = []
@@ -225,6 +238,7 @@ class Data(BaseCase):
             urll = url.get_attribute("href")
             #store accounts url in a list 
             url_acc.append(urll)
+        
         
         #formating data in a df
         data = {
@@ -235,7 +249,10 @@ class Data(BaseCase):
         }
         
         #create a dataframe 
-        df = pd.DataFrame(data)
+        try:
+            df = pd.DataFrame(data)
+        except ValueError:
+            df = pd.DataFrame.from_dict(data, orient='index')
         
         #convert dataframe into an excel file
         #generate followers file
@@ -250,12 +267,41 @@ class Data(BaseCase):
             following_file = df.to_excel(file)
             return following_file
     
+    def test_get_acc_info(self):
+        acc_info_data = {
+            'username': info.scrape,
+            'name': self.name,
+            'url': f'https://www.instagram.com/{info.scrape}',
+            'profile_pic_url': self.profile_pic_url,
+            'posts': self.posts,
+            'followers': self.followers,
+            'following': self.following,
+            'bio': self.bio
+        }
+        
+        #generate dataframe store the acc available information
+        df1 = pd.DataFrame(acc_info_data, index=[0])
+        acc_info_name = f'{info.username}_info.xlsx'
+        acc_info_file = df1.to_excel(acc_info_name)
+        return acc_info_file
+    
     #scrape public accounts without log in
-    def test_public(self):
+    def test_public(self, url):
+        info.test_get_full_path(url)
         self.open(info.url)
         self.sleep(6)
-        if self.assert_exact_text("Sorry, this page isn't available."):
+        
+        #check if the url exist
+        try:
+            self.assert_text_not_visible("Sorry, this page isn't available.")
+        except Exception:
             raise Exception('The link you followed may be broken, or the page may have been removed.')
+        
+        #check if the instagram give access without login
+        try:
+            self.assert_text_not_visible("Something went wrong")
+        except Exception:
+            raise Exception('Something went wrong please try again or just login to solve the problem')
         
         #check if account is private
         try: 
@@ -266,14 +312,25 @@ class Data(BaseCase):
         self.test_scrape()
     
     def test_start_scrape(self):
-        acc_type = input('Type PV for private account / PB for public account.').lower()
-        # path = input('Provide username/url\'s account')
-        if acc_type == 'pv':
-            username = input('account\'s username: ')
-            password = input('account\'s password:  ')
-            scrape   = input('account to scrape: ')
-            self.test_private( username=username, password=password, scrape=scrape)
+        keep_scraping = True
+        print('\nWelcome to Instagram-bot followers/ing scraping.')
+        print('Type stop/s/f if you would like to stop the program.')
+        while keep_scraping:
+            acc_type = input('Type private/pv/v for private account / public/pb/b for public account. \n').lower()
             
-
-
-
+            if acc_type in ['pv', 'private']:
+                username = input('Account\'s username: ')
+                password = input('Account\'s password:  ')
+                scrape   = input('Account to scrape: ')
+                self.test_private( username=username, password=password, scrape=scrape)
+            
+            elif acc_type in ['pb', 'public']:
+                url = input('Provide account\'s link: ')
+                self.test_public(url)
+            
+            print('Type stop/s/f if you would like to stop the program.')
+            
+            #scrape again or stop the program
+            to_continue = input('If you want to continue scraping click "ENTER". if not type stop/s/f ').lower()
+            if to_continue in ['stop', 's', 'f']:
+                keep_scraping = False
