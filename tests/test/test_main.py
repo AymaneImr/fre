@@ -114,6 +114,12 @@ class Data(BaseCase):
             self.assert_text_not_visible('Sorry, your password was incorrect. Please double-check your password.')
         except Exception:
             raise Exception('The password is incorrect. Please double check your login information.')
+        
+        try:
+            self.assert_text_not_visible('Help us confirm it\'s you')
+        except Exception:
+            raise Exception('Login to your account and Try solving captcha manually')
+        
         try:
             self.is_text_visible('Save your login info?', 'div')
         except Exception:
@@ -157,8 +163,12 @@ class Data(BaseCase):
         self.profile_pic_url = image_src
         
         #get the account name
-        acc_name = self.find_element('.x7a106z span.x1lliihq')
-        self.name = acc_name.text
+        try:
+            acc_name = self.find_element('.x7a106z span.x1lliihq')
+            self.name = acc_name.text
+        except Exception:
+            self.name = None
+            pass
         
         #get the bio
         try:
@@ -257,15 +267,14 @@ class Data(BaseCase):
         #convert dataframe into an excel file
         #generate followers file
         if data_file == 'followers':
-            file = f'{info.scrape}followers.xlsx'
-            followers_file = df.to_excel(file)
-            return followers_file
+            file = f'{info.scrape}-followers.xlsx'
         
         #generate following file
         elif data_file == 'following':
-            file = f'{info.scrape}following.xlsx'
-            following_file = df.to_excel(file)
-            return following_file
+            file = f'{info.scrape}-following.xlsx'
+        
+        followers_file = df.to_excel(file)
+        return followers_file
     
     def test_get_acc_info(self):
         acc_info_data = {
@@ -316,7 +325,7 @@ class Data(BaseCase):
         print('\nWelcome to Instagram-bot followers/ing scraping.')
         print('Type stop/s/f if you would like to stop the program.')
         while keep_scraping:
-            acc_type = input('Type private/pv/v for private account / public/pb/b for public account. \n').lower()
+            acc_type = input('Type private/pv/v for private scraping / public/pb/b for public scraping. \n').lower()
             
             if acc_type in ['pv', 'private']:
                 username = input('Account\'s username: ')

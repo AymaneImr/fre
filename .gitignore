@@ -9,6 +9,7 @@ tests/test/__pycache__
 tests/test/.pytest_cache
 tests/test/latest_logs
 
+archived_logs
 .pytest_cache
 latest_logs
 venv
