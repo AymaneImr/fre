@@ -320,6 +320,43 @@ class Data(BaseCase):
         
         self.test_scrape()
     
+    #unfollow all the accounts not specified in the given list(to_Remain) to remain following
+    def test_Unfollow(self, username, password, to_Remain: list[str]=[]):
+        #login to account
+        self.test_login(username, password)
+        self.sleep(5)
+        
+        #go to your profile and make a list of your following list
+        self.click('a:contains("Profile")')
+        self.sleep(6)
+        self.click('a:contains("following")')
+        self.sleep(6)
+        #scroll the popup to visible all the accounts on your following list
+        popup = self.find_element('._aano')
+        for i in range(2):
+            self.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", popup)
+            self.sleep(2)
+        usernames = self.find_elements('span._ap3a')
+        
+        #check if the account have any foolowing 
+        if not usernames or usernames == None:
+            raise Exception('You are following no one to Unfollow!!')
+        
+        #specify the accounts to Unfollow from your following list and except the given accounts in (to_Remain)   
+        to_Unfollow = [username.text for username in usernames if username.text not in to_Remain]
+        
+        #Unfollow accounts steps
+        self.sleep(2)
+        for acc in to_Unfollow:
+            self.open(f'https://www.instagram.com/{acc}')
+            self.sleep(3)
+            
+            self.click('button:contains("Following")')
+            self.sleep(3)
+            self.click('span:contains("Unfollow")')
+            self.sleep(3)
+    
+    #the main function that runs the usable functions 
     def test_start_scrape(self):
         keep_scraping = True
         print('\nWelcome to Instagram-bot followers/ing scraping.')
