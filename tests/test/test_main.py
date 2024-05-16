@@ -148,10 +148,10 @@ class Data(BaseCase):
         #convert numbers form from (1K) to (1000)
         def convert_number(number):
             if 'M' in number:
-                number = int(float(followers.rstrip('M').strip('.')) * 1000000)
+                number = int(float(number.rstrip('M').strip('.')) * 1000000)
                 return number
             elif 'K' in number:
-                number = int(float(followers.rstrip('K').strip('.')) * 1000)
+                number = int(float(number.rstrip('K').strip('.')) * 1000)
                 return number
             return number
         
@@ -217,7 +217,7 @@ class Data(BaseCase):
             self.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", popup)
             self.sleep(2)
         
-        #scrape following usernames and names and profile pic url
+        #scrape following/ers usernames and names and profile pic url
         usernames = self.find_elements('span._ap3a')
         usernames_data = []
         for username in usernames:
@@ -225,7 +225,7 @@ class Data(BaseCase):
             usernames_data.append(username.text)
         
         
-        #scrape following names
+        #scrape following/ers names
         names = self.find_elements('._aano span.x1lliihq span.x6ikm8r')
         names_data = []
         for name in names:
@@ -233,7 +233,7 @@ class Data(BaseCase):
             names_data.append(name.text)
         
         
-        #scrape following profile pic url and store it in a list
+        #scrape following/ers profile pic url and store it in a list
         img_elements_src = self.find_elements('.x1ja2u2z[role="dialog"] img[src]')
         sources = []
         for img in img_elements_src:
@@ -323,60 +323,154 @@ class Data(BaseCase):
     #unfollow all the accounts not specified in the given list(to_Remain) to remain following
     def test_Unfollow(self, username, password, to_Remain: list[str]=[]):
         #login to account
-        self.test_login(username, password)
+        self.test_log_in(username, password)
         self.sleep(5)
         
         #go to your profile and make a list of your following list
         self.click('a:contains("Profile")')
         self.sleep(6)
+        
+        #scraping followers, following and posts numbers
+        numbers = self.find_elements('span[class="_ac2a"]')
+        following = numbers[2].text
+        
+        #convert numbers form from (1K) to (1000)
+        def convert_number(number):
+            if 'M' in number:
+                number = int(float(number.rstrip('M').strip('.')) * 1000000)
+                return number
+            elif 'K' in number:
+                number = int(float(number.rstrip('K').strip('.')) * 1000)
+                return number
+            return number
+        
+        self.following = convert_number(following)
+        self.sleep(3)
+        
         self.click('a:contains("following")')
         self.sleep(6)
         #scroll the popup to visible all the accounts on your following list
         popup = self.find_element('._aano')
-        for i in range(2):
+        self.sleep(2)
+        scroll_times = int(self.following) // 5
+        for i in range(scroll_times + 1):
             self.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", popup)
             self.sleep(2)
         usernames = self.find_elements('span._ap3a')
         
         #check if the account have any foolowing 
         if not usernames or usernames == None:
-            raise Exception('You are following no one to Unfollow!!')
-        
-        #specify the accounts to Unfollow from your following list and except the given accounts in (to_Remain)   
-        to_Unfollow = [username.text for username in usernames if username.text not in to_Remain]
+            raise Exception('You are Following no one to Unfollow!!')
         
         #Unfollow accounts steps
+        x = 0
+        for username in usernames:
+            x += 1
+            if username.text not in to_Remain:
+                self.click_xpath(f'/html/body/div[6]/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[4]/div[1]/div/div[{x}]/div/div/div/div[3]/div/button')
+                self.sleep(2)
+                self.click('button:contains("Unfollow")')
+                self.sleep(2)
+    
+    #remove followers from your your account with the option of keeping some 
+    def test_Remove_followers(self, username, password, to_Remain: list[str]=[]):
+        #login to account
+        self.test_log_in(username, password)
+        self.sleep(5)
+        
+        #go to your profile and make a list of your following list
+        self.click('a:contains("Profile")')
+        self.sleep(6)
+        #scraping followers, following and posts numbers
+        numbers = self.find_elements('span[class="_ac2a"]')
+        followers = numbers[1].text
+        
+        #convert numbers form from (1K) to (1000) or (1M) to (1000000)
+        def convert_number(number):
+            if 'M' in number:
+                number = int(float(number.rstrip('M').strip('.')) * 1000000)
+                return number
+            elif 'K' in number:
+                number = int(float(number.rstrip('K').strip('.')) * 1000)
+                return number
+            return number
+        
+        self.followers = convert_number(followers)
+        self.sleep(3)
+        
+        self.click('a:contains("followers")')
+        self.sleep(6)
+        
+        #scroll the popup to visible all the accounts on your followers list
+        popup = self.find_element('._aano')
         self.sleep(2)
-        for acc in to_Unfollow:
-            self.open(f'https://www.instagram.com/{acc}')
-            self.sleep(3)
+        scroll_times = int(self.followers) // 5
+        for i in range(scroll_times + 1):
+            self.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", popup)
+            self.sleep(2)
             
-            self.click('button:contains("Following")')
-            self.sleep(3)
-            self.click('span:contains("Unfollow")')
-            self.sleep(3)
+        usernames = self.find_elements('span._ap3a')
+        
+        #check if the account have any foolowers 
+        if not usernames or usernames == None:
+            raise Exception('You have no Followers!!')
+        
+        #remove followers steps
+        x = 0
+        for username in usernames:
+            x += 1
+            if username not in to_Remain:
+                self.click_xpath(f'/html/body/div[6]/div[1]/div/div[2]/div/div/div/div/div[2]/div/div/div[3]/div[1]/div/div[{x}]/div/div/div/div[3]/div/div')
+                self.sleep(2)
+                self.click('button:contains("Remove")')
+                self.sleep(2)
     
     #the main function that runs the usable functions 
     def test_start_scrape(self):
         keep_scraping = True
-        print('\nWelcome to Instagram-bot followers/ing scraping.')
+        keep_cleaning = True
+        
+        print('\nWelcome to Instagram-bot.')
         print('Type stop/s/f if you would like to stop the program.')
-        while keep_scraping:
-            acc_type = input('Type private/pv/v for private scraping / public/pb/b for public scraping. \n').lower()
-            
-            if acc_type in ['pv', 'private']:
-                username = input('Account\'s username: ')
-                password = input('Account\'s password:  ')
-                scrape   = input('Account to scrape: ')
-                self.test_private( username=username, password=password, scrape=scrape)
-            
-            elif acc_type in ['pb', 'public']:
-                url = input('Provide account\'s link: ')
-                self.test_public(url)
-            
-            print('Type stop/s/f if you would like to stop the program.')
-            
-            #scrape again or stop the program
-            to_continue = input('If you want to continue scraping click "ENTER". if not type stop/s/f ').lower()
-            if to_continue in ['stop', 's', 'f']:
-                keep_scraping = False
+        method = input('Type scrape if you want to scrape accounts OR type followers if you want to clear your followers or following list ').lower()
+        print('HINT: if you choosed public scraping fill account\'s username and password with anything or click ENTER ')
+        username = input('Account\'s username: ')
+        password = input('Account\'s password:  ')
+        
+        if method == 'scrape':
+            while keep_scraping:
+                acc_type = input('Type private/pv/v for private scraping / public/pb/b for public scraping. \n').lower()
+
+                if acc_type in ['pv', 'private']:
+                    scrape   = input('Account to scrape: ')
+                    self.test_private( username=username, password=password, scrape=scrape)
+
+                elif acc_type in ['pb', 'public']:
+                    url = input('Provide account\'s link: ')
+                    self.test_public(url)
+
+                #scrape again or stop the program
+                to_continue = input('If you want to continue scraping click "ENTER". if not type stop/s/f ').lower()
+                if to_continue in ['stop', 's', 'f']:
+                    keep_scraping = False
+        
+        elif method == 'followers':
+            while keep_cleaning:
+                specify_follow = input('Type following if you want to clean your following list \n Type followers to clean your followers list. ').lower()
+                
+                #unfollow accounts from following list
+                if specify_follow == 'following':
+                    to_remain = input('If you wish to except an account or multiple accounts from unfollowing type their/his username/s')
+                    to_Remain = to_remain.split(',')
+                    self.test_Unfollow(username, password, to_Remain)
+                
+                #remove accounts from followers list 
+                elif specify_follow == 'followers':
+                    to_remain = input('If you wish to except an account or multiple accounts from removing follow type their/his username/s')
+                    to_Remain = to_remain.split(',')
+                    self.test_Remove_followers(username, password, to_Remain)
+                
+                #clean again or stop the program
+                to_continue = input('If you want to continue scraping click "ENTER". if not type stop/s/f ').lower()
+                if to_continue in ['stop', 's', 'f']:
+                    keep_cleaning = False
