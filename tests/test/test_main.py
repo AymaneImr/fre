@@ -426,7 +426,7 @@ class Data(BaseCase):
                 self.sleep(2)
     
     #the main function that runs the usable functions 
-    def test_start_scrape(self):
+    def test_start(self):
         keep_scraping = True
         keep_cleaning = True
         
